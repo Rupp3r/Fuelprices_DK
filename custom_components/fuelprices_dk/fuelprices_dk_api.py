@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from .fuelprices_dk_parsers import fuelParser  # Module containing parsers
+from .fuelprices_dk_parsers import fuelParser  # Ensure fuelParser has a unox() method
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 _LOGGER = logging.getLogger(__name__)
@@ -14,6 +14,7 @@ ELECTRIC = "electric"
 OCTANE_95 = "oktan 95"
 OCTANE_95_PLUS = "oktan 95+"
 OCTANE_100 = "oktan 100"
+
 FUEL_COMPANIES = {
     "circlek": {
         "name": "Circle K",
@@ -91,6 +92,14 @@ FUEL_COMPANIES = {
             DIESEL_PLUS: {"name": "Shell V-Power Diesel"},
         },
     },
+    "unox": {
+        "name": "UNO-X",
+        "url": "https://bilist.unoxmobility.dk/braendstofpriser/",
+        "products": {
+            OCTANE_95: {"name": "Benzin 95"},
+            DIESEL: {"name": "Diesel"},
+        },
+    },
 }
 
 
@@ -98,8 +107,8 @@ class fuelprices:
     def __init__(self):
         self._fuelCompanies = {}
 
-    def loadCompanies(self, companyKeys, productKeys):
-        # If no companies is specified, use ALL companies
+    def loadCompanies(self, companyKeys=None, productKeys=None):
+        # If no companies are specified, use ALL companies
         if not companyKeys:
             companyKeys = FUEL_COMPANIES.keys()
 
@@ -111,12 +120,12 @@ class fuelprices:
         for companyKey in companyKeys:
             if companyKey in FUEL_COMPANIES.keys():
                 _LOGGER.debug(
-                    "Adding fuelcompany: " + FUEL_COMPANIES[companyKey]["name"]
+                    "Adding fuel company: " + FUEL_COMPANIES[companyKey]["name"]
                 )
 
                 # Loop through all the products and remove the ones NOT specified
                 for productKey in list(FUEL_COMPANIES[companyKey]["products"].keys()):
-                    if not productKey in productKeys:
+                    if productKey not in productKeys:
                         del FUEL_COMPANIES[companyKey]["products"][productKey]
                     else:
                         _LOGGER.debug(
@@ -134,9 +143,8 @@ class fuelprices:
                     fuelParser(),
                 )
 
-    # Return a list of unique productKeys
     def _getProductKeys(self):
-        # Prepare a empty list
+        # Prepare an empty list
         productKeys = []
         # Loop through all the companies
         for company in FUEL_COMPANIES.values():
@@ -147,7 +155,6 @@ class fuelprices:
         # Return the set as a list
         return list(productKeys)
 
-    # Refresh prices from all the products from all the companies
     def refresh(self):
         for company in self.getCompanies():
             company.refreshPrices()
@@ -193,15 +200,12 @@ class fuelCompany:
     def getURL(self):
         return self._url
 
-    # Refresh the companys prices
     def refreshPrices(self):
         _LOGGER.debug("Refreshing prices from: " + self._name)
-        # Run the function, from the parser, with the same name as the companys key
-        # Provide the URL and the dictionary with the products
-        # Update the dictionary with products with the returned data
+        # Call the parser method dynamically based on the company's key (e.g., unox)
         self._products = getattr(self._parser, self._key)(self._url, self._products)
         _LOGGER.debug("products: %s", self._products)
-        # If the Key 'priceType' is present, extract it from the dict, else use DEFAULT_PRICE_TYPE
+        # Update the price type if available in the returned data
         self._priceType = self._products.pop("priceType", DEFAULT_PRICE_TYPE)
 
     def getProductsKeys(self):
