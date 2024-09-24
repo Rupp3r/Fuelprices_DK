@@ -136,6 +136,32 @@ class fuelParser:
                         )
         return products
 
+    # UNO-X
+    def unox(self, url, products):
+        # Fetch the webpage
+        r = self._get_website(url)
+        html = self._get_html_soup(r)
+
+        # Extract fuel prices from the table or divs
+        rows = html.find_all("div", class_="braendstof-priser")  # Adjust this selector to fit the actual structure
+
+        # Loop through the products and match them to the table
+        for productKey, productDict in products.items():
+            found = False
+            for row in rows:
+                if found:
+                    continue
+                product_name_elem = row.find("div", class_="fuel-type")  # Adjust selectors as necessary
+                price_elem = row.find("div", class_="fuel-price")  # Adjust selectors as necessary
+
+                if product_name_elem and price_elem:
+                    found = productDict["name"] == self._cleanProductName(product_name_elem.text)
+                    if found:
+                        products[productKey] = self._addPriceToProduct(
+                            productDict, price_elem.text
+                        )
+        return products    
+
     # INGO
     def ingo(self, url, products):
         return self._getDataFromTable(url, products, 1, 2)
